@@ -30,11 +30,11 @@ class Bar:
 class Bars(dict):
 
     def __init__(self, bar_dict):
-        
         self.__bar_dict = bar_dict
         self.__check_dates()
 
     def __check_dates(self):
+        # check if dates are aligned 
         current_date = None
         for instrument, bar in self.__bar_dict.items():
             if current_date == None:
@@ -42,15 +42,15 @@ class Bars(dict):
             elif current_date != bar.datetime:
                 raise ValueError('bar datetimes are not aligned')
     
-    def __setitem__(self, instrument, bar):
+    def __setitem__(self, instrument:str, bar:Bar):
         self.__bar_dict[instrument] = bar
         self.__check_dates()
 
-    def __getitem__(self, instrument):
+    def __getitem__(self, instrument:str) -> Bar:
         return self.__bar_dict[instrument]
 
     @property
-    def instruments(self):
+    def instruments(self) -> list:
         return list(self.__bar_dict.keys())
 
     @property
