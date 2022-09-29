@@ -1,16 +1,6 @@
 import csv
 from typing import Protocol
-
 from .bars import Bar, Bars
-
-
-class Subject(Protocol):
-    def attach():
-        ...
-    def detach():
-        ...
-    def notify():
-        ...
 
 
 class Observer(Protocol):
@@ -50,6 +40,23 @@ def csv_parser(path):
             bars =  Bars({instrument: Bar(**value) for instrument, value in data_dict.items()})
             barfeed[date] = bars
     return barfeed
+
+
+def df_parser(df):
+    # check if columns names are in correct order and correct 
+    bars_feed = {}
+    for date, series in df.iterrows():
+        instruments = set([i[0] for i in series.index])
+        bars = {}
+        for instrument in instruments:
+            instrument_data = series[instrument]
+            instrument_data['datetime'] = instrument_data.name
+            instrument_data.rename({'Open':'open', 'High':'high', 'Low':'low', 
+                'Close':'close', 'Adj Close':'adj_close', 'Volume':'volume'}, 
+                inplace=True)
+            bars[instrument] = Bar(**dict(instrument_data))
+        bars_feed[date] = Bars(bars)
+    return bars_feed
 
 
 class Feed():

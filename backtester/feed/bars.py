@@ -22,7 +22,7 @@ class Bar:
             self.open = self.open * adj_factor
             self.high = self.high * adj_factor
             self.low = self.low * adj_factor
-            self.close = self.close * adj_factor
+            self.close = self.adj_close
 
     ## make the bars adjustable if adjust_close = True
 
