@@ -23,6 +23,17 @@ class Bar:
             self.high = self.high * adj_factor
             self.low = self.low * adj_factor
             self.close = self.adj_close
+    
+    def to_dict(self):
+        return {
+            'datetime':self.datetime, 
+            'open':self.open, 
+            'high':self.high, 
+            'low':self.low, 
+            'close':self.close, 
+            'volume':self.volume
+            }
+
 
     ## make the bars adjustable if adjust_close = True
 
@@ -56,3 +67,6 @@ class Bars(dict):
     @property
     def datetime(self):
         return next(iter(self.__bar_dict.values())).datetime
+    
+    def to_dict(self):
+        pass

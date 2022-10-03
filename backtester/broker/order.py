@@ -1,11 +1,5 @@
 from typing import Protocol
 
-class Action:
-    def __init__(self):
-    # buy or sell 
-    # buy to close 
-    # sell to close 
-      pass
 
 # class OrderType:
 #     # mid price
@@ -23,15 +17,6 @@ class Action:
 #     ## different algos 
 #     pass
 
-# class OrderState:
-#     # submitted 
-#     # accepted 
-#     # partially filled
-#     # canceled 
-#     #
-#     pass
-
-
 class Bar(Protocol):
 
     open:float
@@ -39,7 +24,6 @@ class Bar(Protocol):
     low:float
     close:float
     volume:float
-
 
 class Execution:
     
@@ -49,7 +33,7 @@ class Execution:
 
     def evaluate_price(self, limit:float, action:str, bar:Bar):
         ret = None
-        if action == 'BUY':
+        if action in ['BUY', 'BUY_CLOSE']:
             if  limit > bar.high:
                 ret = bar.open
             elif limit >= bar.low:
@@ -57,7 +41,7 @@ class Execution:
                     ret = bar.open
                 else:
                     ret = limit
-        elif action == 'SELL':
+        elif action in ['SELL', 'SELL_CLOSE']:
             if limit < bar.low:
                 ret = bar.open
             elif limit <= bar.high:
@@ -83,32 +67,71 @@ class Execution:
 
 class LimitOrder:
 
-    def __init__(self, limit, instrument, quantity, broker):
+    def __init__(self, limit, instrument, action, quantity, broker):#, ??open_id=None):
+
+        self.limit = limit        
         self.instrument = instrument
-        self.volume = quantity #sell if negative
-        self.action = 'BUY' if quantity > 0 else 'SELL'
+        self.action = action #'BUY' if quantity > 0 else 'SELL'
+        if self.action in ['BUY', 'BUY_CLOSE']:
+            self.quantity = quantity
+        elif self.action in ['SELL', 'SELL_CLOSE']:
+            self.quantity = - quantity
+        self.volume_left = quantity
         self.broker = broker
-        self.limit = limit
-        self.state = 'initialise'
+        
+        self.state = 'SUBMITTED'
+        
         self.execution = Execution(broker)
+
 
     def evaluate(self, bars):
         bar = bars[self.instrument]
-        fill = self.execution.evaluate_limit(self.limit, self.volume, 
+        fill = self.execution.evaluate_limit(self.limit, self.volume_left, 
             self.action, bar)
-        return fill 
-
+        if fill is not None:
+            self.volume_left -= fill[1]
+        if self.volume_left == 0:
+            self.state = 'FILLED'
+        return fill
 
     def get_remaining(self):
-        return self.volume
-
-    
+        return self.volume_left
 
     def execute(self):
         return True
 
     def __repr__(self):
-        return f'Limit Order ({self.volume} of {self.instrument} at {self.limit}'
+        return f"""Limit Order({self.volume_left} of {self.instrument} at {self.limit})"""
+
+class Slippage():
+    """avoid it by using limit orders"""    
+    def __init__(self,):
+        ...
+
+    def calculate(self) -> float:
+        ...
+
+class Tax():
+    """capital gains tax, only applicable to close orders"""
+    def __init__(self):
+        self.rate = 0.2
+
+    def calculate(self, gain) -> float:
+        return gain * self.rate
+
+# capital gains algorithm -> check amount sell, go to first order of that 
+#   instrument and tax these orders until theyve all been taxed or until 
+#   there are not enough sell orders to be taxed 
+
+
+
+
+
+
+
+
+
+
 
 
 
