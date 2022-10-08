@@ -2,6 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 
+# strategy is there to create signals 
+# the signals will be then 
+
+# the stats etc are supposed to go to the portfolio
+
+
 class Strategy:
     def __init__(self, feed, broker):
         self.feed = feed 
@@ -14,9 +20,10 @@ class Strategy:
             'datetime':np.array(()), 
             'equity':np.array(()), 
             'cash':np.array(()), 
-            'position':np.array(())
+            'position':np.array(()),
+            'adj':self.feed.adjustment_factor
         }
-        
+
     def start(self):
         self.feed.start()
 
@@ -40,7 +47,7 @@ class Strategy:
 
     def submit_order(self, order):
         self.broker.submit_order(order)
-            
+
     @property
     def orders(self):
         return self.broker.orders
@@ -67,20 +74,6 @@ class Strategy:
     def get_timeseries(self):
         return self.feed.timeseries
 
-    @property
-    def summary_statistics(self):
-        if self.status=='done':
-            adj = self.feed.adjustment_factor
-            equity = self.equity_stats['equity']
-            rets = np.diff(equity)/equity[:-1] 
-            dd = ((equity/np.maximum.accumulate(equity)) -1) 
-            mean = np.mean(rets) * adj
-            std = np.std(rets) * np.sqrt(adj)
-            sharpe = mean/std
-            max_dd = dd.min()
-            return {'return':mean, 'stdev':std, 'sharpe': sharpe, 
-                'max drawdown':max_dd}
-
     def get_output(self):
         pass
 
@@ -94,7 +87,5 @@ class Strategy:
         self.equity_stats['position'] = np.append(self.equity_stats['position'], 
             self.broker.pos_value)
 
-        # self.equity_stats = np.vstack((self.equity_stats, new_row))
-
     def on_eof(self):
-        self.status = 'done'
+        pass

@@ -66,21 +66,21 @@ class Execution:
             return None
 
 class LimitOrder:
+    """has to become an observer that listens to ticks and sends info to broker"""
 
     def __init__(self, limit, instrument, action, quantity, broker):#, ??open_id=None):
 
         self.limit = limit        
         self.instrument = instrument
         self.action = action #'BUY' if quantity > 0 else 'SELL'
+        assert quantity != 0 
         if self.action in ['BUY', 'BUY_CLOSE']:
             self.quantity = quantity
         elif self.action in ['SELL', 'SELL_CLOSE']:
             self.quantity = - quantity
         self.volume_left = quantity
         self.broker = broker
-        
         self.state = 'SUBMITTED'
-        
         self.execution = Execution(broker)
 
 

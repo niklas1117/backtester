@@ -1,18 +1,7 @@
 from typing import Protocol 
-
-
-class Observer(Protocol):
-    def update():
-        ...
-
-
-class Subject(Protocol):
-    def attach():
-        ...
-    def detach():
-        ...
-    def notify():
-        ...
+from backtester.log import log
+from . import Position # position has to be changed 
+                       # (broker does not want to know about pos)
 
 
 class Order(Protocol):
@@ -20,11 +9,13 @@ class Order(Protocol):
     def evaluate():
         ...
 
+# orders go to the portfolio class and get executed here
+# this is just for order execution
+# positoins are created in portfolio
 
 class Broker:
 
-    def __init__(self, starting_balance=10_000):
-        self.cash = starting_balance
+    def __init__(self):
         self.equity = self.cash # maybe turn equity into a list 
         self.pos_value = 0
         self.comission = Comission(0.0005, 3)
@@ -42,8 +33,8 @@ class Broker:
     def submit_order(self, order:Order):
         self.orders[self.order_id] = order
         self.order_id += 1
-        print(f'SUBMITTED: {order}')
-    
+        log(f'SUBMITTED: {order}')
+
     def get_limit_order_quantity(self, instrument):
         return sum([i.volume_left for i in self.orders.values() 
             if ((i.instrument == instrument) & (i.state =='SUBMITTED'))])
@@ -56,7 +47,7 @@ class Broker:
         self.__evaluate_orders(bars)
         self.__update_equity(bars)
         self.__log_equity()
-        print(f'\nDATE: {bars.datetime}')
+        log(f'\nDATE: {bars.datetime}')
 
     def __on_eof(self):
         # close remaining orders
@@ -75,20 +66,20 @@ class Broker:
         quantity = fill[1]
         cost = self.__calculate_cost(price, quantity)
         post_cash = self.cash - (price*quantity) -cost
-        print(post_cash, self.cash, (price*quantity) -cost)
-        assert  post_cash >= 0, "Cash can't be negative"
-        self.cash = post_cash
-        self.__create_position(fill, order.instrument)
+        if post_cash < 0:
+            log("Cash can't be negative")
+        else:
+            self.cash = post_cash
+            self.__create_position(fill, order.instrument)
 
     def __calculate_cost(self, price, quantity):
         comission = self.comission.calculate(price, quantity)
         return comission
 
     def __create_position(self, fill, instrument):
-        print(f'FILLED: {fill[1]} {instrument} at {fill[0]}') #>>>>>LOG
+        log(f'FILLED: {fill[1]} {instrument} at {fill[0]}')
         if instrument not in self.positions.keys():
             self.positions[instrument] = Position(fill, instrument)
-            print(self.positions)
         else:
             self.positions[instrument].add(fill)
 
@@ -98,27 +89,9 @@ class Broker:
         self.equity = self.cash + self.pos_value
             
     def __log_equity(self):
-        print(f'EQUITY: {round(self.equity, 2)}')
-        print(f'CASH: {round(self.cash, 2)}')
-        print(f'POSITIONS: {round(self.pos_value, 2)}')
-
-
-class Position:
-
-    def __init__(self, fill, instrument):
-       
-        self.instrument = instrument
-        self.price = fill[0]
-        self.quantity = fill[1] #sell if negative
-
-    def add(self, fill):
-        new_quantity = self.quantity+fill[1]
-        self.price = ((self.price*self.quantity)+(fill[0]*fill[1]))/new_quantity
-        self.quantity += fill[1]
-
-    def get_value(self, bars):
-        bar = bars[self.instrument]
-        return bar.close * self.quantity
+        log(f'EQUITY: {round(self.equity, 2)}')
+        log(f'CASH: {round(self.cash, 2)}')
+        log(f'POSITIONS: {round(self.pos_value, 2)}')
 
 
 class Comission():

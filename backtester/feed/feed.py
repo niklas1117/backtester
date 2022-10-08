@@ -48,7 +48,7 @@ def csv_parser(path):
         barfeed = {}
         for row in spamreader:
             data_dict = {inst:{} for inst in instruments}
-            date = dt.datetime(row[0])
+            date = row[0]
             for value, col in zip(row[1:], columns[1:]):
                 data_dict[col[0]]['datetime'] = date
                 data_dict[col[0]][col[1]] = float(value)
