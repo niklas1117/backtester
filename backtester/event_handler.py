@@ -27,22 +27,25 @@ class EventHandler:
             self.feed.update_bars()
             # try:
             event = self.events.get(False)
-            if event == 'eod':
-                break
+            try:
+                if event.bars == 'eof':
+                    break
+            except:
+                pass
             # else:
             if event is not None:
                 if event.type == 'MARKET':
-                    port.update_timeindex(event)
-                    broker.execute_orders(event)
-                    strategy.calculate_signals(event)
+                    self.port.update_timeindex(event)
+                    self.broker.execute_orders(event)
+                    self.strategy.calculate_signals(event)
                 if event.type == 'SIGNAL':
-                    port.update_signal(event)        
+                    self.port.update_signal(event)        
                 if event.type == 'ORDER':
-                    broker.submit_order(event)
+                    self.broker.submit_order(event)
                 if event.type == 'FILL':
-                    port.update_fill(event)
+                    self.port.update_fill(event)
 
-        print('done')
+        return self.port.create_equity_curve_df()
 
 
 

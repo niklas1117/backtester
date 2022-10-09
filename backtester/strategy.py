@@ -21,21 +21,21 @@ class BasicStragegy(Strategy):
         self.bought = {inst: False for inst in self.instruments}
 
     def calculate_signals(self, event):
-        ts = self.feed.timeseries
-        if len(ts) > 300:
-            for inst in self.instruments:
-                close = ts[inst]['close']
+        ts = self.feed.get_timeseries()
+        for inst in self.instruments:
+            close = ts[inst]['close']
+            if len(close) > 300:
                 if not self.bought[inst]:    
                     if close[-1]*0.8 <= sum(close[200:])/len(close[200:]):
                         # More elaborate calculation for signal:
-                        signal = SignalEvent(inst, self.feed.current_date, 
-                            'LONG')
+                        signal = SignalEvent(inst, self.feed.get_current_date(), 
+                            'BUY')
                         self.events.put(signal)
                         self.bought[inst] = True
                 else:
                     if close[-1]*1.2 >= sum(close[200:])/len(close[200:]):
-                        signal = SignalEvent(inst, self.feed.current_date, 
-                            'SHORT')
+                        signal = SignalEvent(inst, self.feed.get_current_date(), 
+                            'SELL')
                         self.events.put(signal)
                         self.bought[inst] = False
 

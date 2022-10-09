@@ -27,7 +27,7 @@ class BasicPortfolio(Portfolio):
         self.feed = feed
         self.events = events
         self.start_date = start_date
-        self.instruments = self.bars.instruments
+        self.instruments = self.feed.instruments
         self.initial_capital = initial_capital
         self.all_positions = self.create_all_positions() # quantity
         self.current_positions = {i:0 for i in self.instruments}
@@ -55,11 +55,17 @@ class BasicPortfolio(Portfolio):
         return d
 
     def update_timeindex(self, event):
-        pos_dict = self.current_positions
-        pos_dict['datetime'] = self.feed.current_date
+        bars = event.bars
+        pos_dict = self.current_positions.copy()
+        pos_dict['datetime'] = self.feed.get_current_date()
         self.all_positions.append(pos_dict)
-        hold_dict = self.current_holdings
-        hold_dict['datetime'] = self.feed.current_date
+        hold_dict = self.current_holdings.copy()
+        hold_dict['datetime'] = self.feed.get_current_date()
+        for inst in self.instruments:
+            market_value = (self.current_positions[inst] 
+                * bars[inst].close)
+            hold_dict[inst] = market_value
+            hold_dict['total'] += market_value
         self.all_holdings.append(hold_dict)
 
     def update_positions_from_fill(self, fill):
@@ -84,25 +90,27 @@ class BasicPortfolio(Portfolio):
         # and position sizing
         order = None
         instrument = signal.instrument
-        close = self.feed.current_bars[instrument]['close']
+        close = self.feed.get_current_bars()[instrument].close
         direction = signal.signal_type
         strength = signal.strength
         quantity = round(100 * strength)
         cur_quantity = self.current_positions[instrument]
         order_type = 'LIMIT'
-        if direction == 'BUY' and cur_quantity == 0:
+        if (direction == 'BUY' and cur_quantity == 0 and 
+            self.current_holdings['cash'] > quantity*close*2):
             order = OrderEvent(instrument, order_type, quantity, 'BUY', 
                 limit=close*0.98)
         if direction == 'SELL' and cur_quantity == 0:
             order = OrderEvent(instrument, order_type, quantity, 'SELL',    
             limit=close*1.02)       
-        if direction == 'SELL_CLOSE' and cur_quantity > 0:
-            order = OrderEvent(instrument, order_type, abs(cur_quantity), 
-                'SELL', limit=close*1.02)
-        if direction == 'BUY_CLOSE' and cur_quantity < 0:
-            order = OrderEvent(instrument, order_type, abs(cur_quantity), 
-            'BUY', limit=close*0.98)
-        return order
+        # if direction == 'SELL_CLOSE' and cur_quantity > 0:
+        #     order = OrderEvent(instrument, order_type, abs(cur_quantity), 
+        #         'SELL', limit=close*1.02)
+        # if (direction == 'BUY_CLOSE' and cur_quantity > 0 and 
+        #     self.current_holdings['cash'] > quantity*close*2):
+        #     order = OrderEvent(instrument, order_type, abs(cur_quantity), 
+        #     'BUY', limit=close*0.98)
+        # return order
 
     def update_signal(self, signal):
         order_event = self.generate_basic_order(signal)
@@ -114,5 +122,6 @@ class BasicPortfolio(Portfolio):
         curve['returns'] = curve['total'].pct_change()
         curve['equity_curve'] = (1.0+curve['returns']).cumprod()
         self.equity_curve = curve
+        return self.equity_curve
 
     

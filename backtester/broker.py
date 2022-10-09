@@ -1,8 +1,8 @@
 from typing import Protocol 
 from backtester.log import log
-from .broker import Position # position has to be changed 
+# from backtester.broker import Position # position has to be changed 
                        # (broker does not want to know about pos)
-from event import FillEvent, OrderEvent
+from backtester.event import FillEvent, OrderEvent
 from abc import ABC, abstractmethod
 
 class Execution:
@@ -77,8 +77,8 @@ class BacktestExecutionHandler(ExecutionHandler):
     def __init__(self, events=None, feed=None):
         self.events = events
         self.feed = feed
-        self.execution = Execution()
-        self.comission = Comission()
+        self.execution = Execution(self)
+        self.comission = Comission(0.0005, 3)
         self.orders = []
 
     def submit_order(self, order):
@@ -86,14 +86,14 @@ class BacktestExecutionHandler(ExecutionHandler):
         # maybe log here instead of inside order event
 
     def execute_orders(self, event):
-        bars = self.feed.current_bars
+        bars = self.feed.get_current_bars()
         for order in self.orders:
             bar = bars[order.instrument]
             fill = self.execution.evaluate_limit(order.limit, order.quantity, 
                 order.direction, bar) # if order executed fill has info
             if fill is not None:
                 comission = self.comission.calculate(fill[0], fill[1])
-                fill_event = FillEvent(bar.datetime, order.instrument, 
+                fill_event = FillEvent(bar.datetime, order.instrument, None,
                     fill[1], order.direction, fill[0], comission)
                 dir = self.fill_dir[order.direction]
                 order.quantity += dir*fill[1]

@@ -87,11 +87,23 @@ class Feed():
             for inst in self.instruments}
 
     def get_next_bars(self):
-        self.current_bars = self._bars_dict[self.dates[self.next_idx]]
-        self.current_date = self.current_bars.datetime
-        self.append_to_past(self.current_bars)
-        self.next_idx += 1
+        if not self.next_idx == len(self.dates):
+            self.current_bars = self._bars_dict[self.dates[self.next_idx]]
+            self.current_date = self.current_bars.datetime
+            self.append_to_past(self.current_bars)
+            self.next_idx += 1
+            return self.current_bars
+        else:
+            return 'eof'
+
+    def get_current_date(self):
+        return self.current_date
+
+    def get_current_bars(self):
         return self.current_bars
+
+    def get_timeseries(self):
+        return self.timeseries
 
     def update_bars(self):
         bars = self.get_next_bars()
@@ -151,6 +163,6 @@ class Feed():
 
 class CSVFeed(Feed):
 
-    def __init__(self, csv_path, events):
+    def __init__(self, csv_path, events=None):
         bars_dict=csv_parser(csv_path)
         super().__init__(bars_dict, events)
