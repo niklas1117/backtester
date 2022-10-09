@@ -1,20 +1,11 @@
 import csv
+import datetime as dt
 from typing import Protocol
 
 import numpy as np
+from event import MarketEvent
 
 from .bars import Bar, Bars
-import datetime as dt
-
-## I AM MISSING A LOG METHOD 
-
-
-class Observer(Protocol):
-    def update(bar):
-        ...
-    # in the strategy class, update will call on_bar to create orders 
-    # in the broker class, update will call on_bar to fill orders 
-
 
 COL_TRANS = {
     '':'', 
@@ -25,16 +16,6 @@ COL_TRANS = {
     'Adj Close':'adj_close', 
     'Volume':'volume'
     }
-
-COLS = [
-    'datetime', 
-    'open', 
-    'high', 
-    'low', 
-    'close', 
-    'volume'
-    ]
-
 
 def csv_parser(path):
     # check if columns names are in correct order and correct (not really)
@@ -82,38 +63,41 @@ class Feed():
     It is important that observers are attached in the correct order 
     """
 
+    COLS = [
+    'datetime', 
+    'open', 
+    'high', 
+    'low', 
+    'close', 
+    'volume'
+    ]
+
     FREQUENCY_TRANSLATION = {'1d':260}
 
-    def __init__(self, bars_dict:dict):
+    def __init__(self, bars_dict:dict, events, frequency='1d'):
         self.__bars_dict = bars_dict
-        self.frequency = '1d'
-        self.__observers = []
-        self.current_date = None
-        self.current_bars = None
-        self.instruments = next(iter(self.__bars_dict.values())).instruments
-        self.__past_bars = {inst:{col:np.array([])for col in COLS} 
+        self.events = events
+        self.frequency = frequency
+        self.current_bars = next(iter(self.__bars_dict.values()))
+        self.current_date = self.current_bars.datetime
+        self.instruments = self.current_bars.instruments
+        self.next_idx = 0
+        self.dates = list(self.__bars_dict.values())
+        self.__past_bars = {inst:{col:np.array([])for col in Feed.COLS} 
             for inst in self.instruments}
 
-    def attach(self, observer:Observer):
-        self.__observers.append(observer)
-        
-    def detach(self, observer:Observer):
-        raise NotImplementedError('one day I might add a detach method')
+    def get_next_bars(self):
+        self.current_bars = self.__bars_dict[self.dates[self.next_idx]]
+        self.current_date = self.current_bars.datetime
+        self.append_to_past(self.current_bars)
+        self.next_idx += 1
+        return self.current_bars
 
-    def notify(self, **kwargs):
-        for observer in self.__observers:
-            observer.update(**kwargs)
-
-    def start(self):
-        #start can notify observers with a new bar or with eof when done
-        print('feed started')
-        for date, bars in self.__bars_dict.items():
-            ## notify somehow when feed is started
-            self.current_date = date
-            self.current_bars = bars
-            self.notify(bars=bars)
-            self.append_to_past(bars)
-        self.notify(eof='eof')
+    def update_bars(self):
+        self.get_next_bars()
+        self.events.put(MarketEvent())
+        # maybe make this a bit less structured 
+        # (allow different amounts of instruments per date)
 
     @property
     def timeseries(self):
@@ -142,7 +126,28 @@ class Feed():
         
     @property
     def adjustment_factor(self):
-        return self.FREQUENCY_TRANSLATION[self.frequency]
+        return Feed.FREQUENCY_TRANSLATION[self.frequency]
+
+    # def attach(self, observer:Observer):
+    #     self.__observers.append(observer)
+        
+    # def detach(self, observer:Observer):
+    #     raise NotImplementedError('one day I might add a detach method')
+
+    # def notify(self, **kwargs):
+    #     for observer in self.__observers:
+    #         observer.update(**kwargs)
+
+    # def start(self):
+    #     #start can notify observers with a new bar or with eof when done
+    #     print('feed started')
+    #     for date, bars in self.__bars_dict.items():
+    #         ## notify somehow when feed is started
+    #         self.current_date = date
+    #         self.current_bars = bars
+    #         self.notify(bars=bars)
+    #         self.append_to_past(bars)
+    #     self.notify(eof='eof')
 
 class CSVFeed(Feed):
 
