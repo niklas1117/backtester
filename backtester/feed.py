@@ -3,9 +3,9 @@ import datetime as dt
 from typing import Protocol
 
 import numpy as np
-from event import MarketEvent
+from backtester.event import MarketEvent
 
-from .bars import Bar, Bars
+from backtester.bars import Bar, Bars
 
 COL_TRANS = {
     '':'', 
@@ -74,28 +74,28 @@ class Feed():
 
     FREQUENCY_TRANSLATION = {'1d':260}
 
-    def __init__(self, bars_dict:dict, events, frequency='1d'):
-        self.__bars_dict = bars_dict
+    def __init__(self, bars_dict:dict, events=None, frequency='1d'):
+        self._bars_dict = bars_dict
         self.events = events
         self.frequency = frequency
-        self.current_bars = next(iter(self.__bars_dict.values()))
+        self.current_bars = next(iter(self._bars_dict.values()))
         self.current_date = self.current_bars.datetime
         self.instruments = self.current_bars.instruments
         self.next_idx = 0
-        self.dates = list(self.__bars_dict.values())
+        self.dates = list(self._bars_dict.keys())
         self.__past_bars = {inst:{col:np.array([])for col in Feed.COLS} 
             for inst in self.instruments}
 
     def get_next_bars(self):
-        self.current_bars = self.__bars_dict[self.dates[self.next_idx]]
+        self.current_bars = self._bars_dict[self.dates[self.next_idx]]
         self.current_date = self.current_bars.datetime
         self.append_to_past(self.current_bars)
         self.next_idx += 1
         return self.current_bars
 
     def update_bars(self):
-        self.get_next_bars()
-        self.events.put(MarketEvent())
+        bars = self.get_next_bars()
+        self.events.put(MarketEvent(bars))
         # maybe make this a bit less structured 
         # (allow different amounts of instruments per date)
 
@@ -151,6 +151,6 @@ class Feed():
 
 class CSVFeed(Feed):
 
-    def __init__(self, csv_path):
+    def __init__(self, csv_path, events):
         bars_dict=csv_parser(csv_path)
-        super().__init__(bars_dict)
+        super().__init__(bars_dict, events)

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 import pandas as pd
-from event import OrderEvent
+from backtester.event import OrderEvent
 
 
 class Portfolio(ABC):
@@ -22,8 +22,8 @@ class Portfolio(ABC):
 
 class BasicPortfolio(Portfolio):
 
-    def __init__(self, feed, events, start_date, initial_capital):
-
+    def __init__(self, initial_capital, start_date=None, feed=None, 
+            events=None):
         self.feed = feed
         self.events = events
         self.start_date = start_date
@@ -54,7 +54,7 @@ class BasicPortfolio(Portfolio):
         d['total'] = self.initial_capital
         return d
 
-    def update_timeindex(self):
+    def update_timeindex(self, event):
         pos_dict = self.current_positions
         pos_dict['datetime'] = self.feed.current_date
         self.all_positions.append(pos_dict)
@@ -64,13 +64,13 @@ class BasicPortfolio(Portfolio):
 
     def update_positions_from_fill(self, fill):
         dir = self.fill_dir[fill.direction]
-        self.current_positions[fill.symbol] += (dir*fill.quantity)
+        self.current_positions[fill.instrument] += (dir*fill.quantity)
 
     def update_holdings_from_fill(self, fill):
         dir = self.fill_dir[fill.direction]
         fill_cost = fill.fill_price
         cost = self.fill_dir[fill.direction] * fill_cost * fill.quantity
-        self.current_holdings[fill.symbol] += cost
+        self.current_holdings[fill.instrument] += cost
         self.current_holdings['cash'] -= (cost + fill.commission)
         self.current_holdings['commission'] += fill.commission
         self.current_holdings['total'] -= (cost + fill.commission)
@@ -83,20 +83,25 @@ class BasicPortfolio(Portfolio):
         # these will become elaborate and will implement risk management
         # and position sizing
         order = None
-        symbol = signal.symbol
+        instrument = signal.instrument
+        close = self.feed.current_bars[instrument]['close']
         direction = signal.signal_type
         strength = signal.strength
         quantity = round(100 * strength)
-        cur_quantity = self.current_positions[symbol]
+        cur_quantity = self.current_positions[instrument]
         order_type = 'LIMIT'
         if direction == 'BUY' and cur_quantity == 0:
-            order = OrderEvent(symbol, order_type, quantity, 'BUY')
+            order = OrderEvent(instrument, order_type, quantity, 'BUY', 
+                limit=close*0.98)
         if direction == 'SELL' and cur_quantity == 0:
-            order = OrderEvent(symbol, order_type, quantity, 'SELL')       
+            order = OrderEvent(instrument, order_type, quantity, 'SELL',    
+            limit=close*1.02)       
         if direction == 'SELL_CLOSE' and cur_quantity > 0:
-            order = OrderEvent(symbol, order_type, abs(cur_quantity), 'SELL')
+            order = OrderEvent(instrument, order_type, abs(cur_quantity), 
+                'SELL', limit=close*1.02)
         if direction == 'BUY_CLOSE' and cur_quantity < 0:
-            order = OrderEvent(symbol, order_type, abs(cur_quantity), 'BUY')
+            order = OrderEvent(instrument, order_type, abs(cur_quantity), 
+            'BUY', limit=close*0.98)
         return order
 
     def update_signal(self, signal):
@@ -110,6 +115,4 @@ class BasicPortfolio(Portfolio):
         curve['equity_curve'] = (1.0+curve['returns']).cumprod()
         self.equity_curve = curve
 
-
-        
-
+    

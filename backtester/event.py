@@ -1,5 +1,5 @@
 from datetime import datetime
-from log import log
+from backtester.log import log
 
 
 class Event:
@@ -8,42 +8,43 @@ class Event:
 
 class MarketEvent(Event):
 
-    def __init__(self):
+    def __init__(self, bars):
         self.type = 'MARKET'
-
+        self.bars = bars
 
 class SignalEvent(Event):
 
-    def __init__(self, symbol, datetime, signal_type):
+    def __init__(self, instrument, datetime, signal_type, strength):
         self.type = 'SIGNAL'
-        self.symbol = symbol
+        self.instrument = instrument
         self.datetime = datetime
         self.signal_type = signal_type
-        self.strength = self.strength
+        self.strength = strength
 
 
 class OrderEvent(Event):
 
-    def __init__(self, symbol, order_type, quantity, direction):
+    def __init__(self, instrument, order_type, quantity, direction, 
+            limit):
         self.type = 'ORDER'
-        self.symbol = symbol
+        self.instrument = instrument
         self.order_type = order_type
         self.quantity = quantity
         self.direction = direction
+        self.limit = limit
 
     def log_order(self):
-        log(f"""SUBMITTED: {self.symbol}, {self.type}, {self.quantity}, 
+        log(f"""SUBMITTED: {self.instrument}, {self.type}, {self.quantity}, 
             {self.direction}""")
 
 
 class FillEvent(Event):
 
-    def __init__(self, timeindex, symbol, exchange, quantity, 
+    def __init__(self, timeindex, instrument, exchange, quantity, 
             direction, fill_price, comission):
         self.type = 'FILL'
         self.timeindex = timeindex
-        self.symbol = symbol
-        self.exchange = exchange
+        self.instrument = instrument
         self.quantity = quantity
         self.direction = direction
         self.fill_price = fill_price

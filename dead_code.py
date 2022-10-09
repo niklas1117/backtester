@@ -1,17 +1,3 @@
-from typing import Protocol 
-from backtester.log import log
-from . import Position # position has to be changed 
-                       # (broker does not want to know about pos)
-
-
-class Order(Protocol):
-    instrument:str
-    def evaluate():
-        ...
-
-# orders go to the portfolio class and get executed here
-# this is just for order execution
-# positoins are created in portfolio
 
 class Broker:
 
@@ -94,11 +80,83 @@ class Broker:
         log(f'POSITIONS: {round(self.pos_value, 2)}')
 
 
-class Comission():
 
-    def __init__(self, relative, minimum):
-        self.relative = relative 
-        self.minimum = minimum 
-    
-    def calculate(self, price, quantity) -> float:
-        return max(self.relative*price*quantity, self.minimum)
+class LimitOrder:
+    """has to become an observer that listens to ticks and sends info to broker"""
+
+    def __init__(self, limit, instrument, action, quantity, broker):#, ??open_id=None):
+
+        self.limit = limit        
+        self.instrument = instrument
+        self.action = action #'BUY' if quantity > 0 else 'SELL'
+        assert quantity != 0 
+        if self.action in ['BUY', 'BUY_CLOSE']:
+            self.quantity = quantity
+        elif self.action in ['SELL', 'SELL_CLOSE']:
+            self.quantity = - quantity
+        self.volume_left = quantity
+        self.broker = broker
+        self.state = 'SUBMITTED'
+        self.execution = Execution(broker)
+
+
+    def evaluate(self, bars):
+        bar = bars[self.instrument]
+        fill = self.execution.evaluate_limit(self.limit, self.volume_left, 
+            self.action, bar)
+        if fill is not None:
+            self.volume_left -= fill[1]
+        if self.volume_left == 0:
+            self.state = 'FILLED'
+        return fill
+
+    def get_remaining(self):
+        return self.volume_left
+
+    def execute(self):
+        return True
+
+    def __repr__(self):
+        return f"""Limit Order({self.volume_left} of {self.instrument} at {self.limit})"""
+
+class Slippage():
+    """avoid it by using limit orders"""    
+    def __init__(self,):
+        ...
+
+    def calculate(self) -> float:
+        ...
+
+class Tax():
+    """capital gains tax, only applicable to close orders"""
+    def __init__(self):
+        self.rate = 0.2
+
+    def calculate(self, gain) -> float:
+        return gain * self.rate
+
+# capital gains algorithm -> check amount sell, go to first order of that 
+#   instrument and tax these orders until theyve all been taxed or until 
+#   there are not enough sell orders to be taxed 
+
+    # def add_order(self, order):
+    #     # maybe add another order to this order to close it
+    #     pass
+
+        # change status maybe??
+
+    # create an order execute object that returns a position
+
+    # submitting two orders at once that connects them? open and close position
+
+    # broker checks the order and decides to go into a position
+
+# slippage depends on the order
+# comission depends on the broker 
+# tax is constant
+
+
+
+# orders go to the portfolio class and get executed here
+# this is just for order execution
+# positoins are created in portfolio
